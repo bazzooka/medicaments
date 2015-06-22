@@ -1,0 +1,26 @@
+{
+  "name": "medicaments",
+  "version": "1.0.0",
+  "description": "Get informations on medicine in french",
+  "main": "server.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bazzooka/medicaments.git"
+  },
+  "keywords": [
+    "mdicaments",
+    "medicine"
+  ],
+  "author": "bazzooka",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bazzooka/medicaments/issues"
+  },
+  "homepage": "https://github.com/bazzooka/medicaments#readme",
+  "devDependencies": {
+    "ava": "0.0.4"
+  }
+}
