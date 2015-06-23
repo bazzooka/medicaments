@@ -110,10 +110,10 @@ var finishCreatingUrl = function(force){
     var url = REQUEST_TAB.pop();
     request.get({url: url.url, encoding: 'binary'}, function (err, response, body) {
         console.log("GET REQUEST DATAS FOR CIP", url.cip);
-        CIP_TAB_CONTENT.push({
-            cip: url.cip,
-            content: body
-        });
+        //CIP_TAB_CONTENT.push({
+        //    cip: url.cip,
+        //    content: body
+        //});
         finishCreatingUrl(true);
         createFile({
             cip: url.cip,
@@ -196,9 +196,7 @@ var parseHTML = function(){
                 });
             })(cip_path_array[i]);
         }
-
-
-    })
+    });
 };
 
 // 1. Download specialite file
