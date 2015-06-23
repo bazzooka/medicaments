@@ -22,7 +22,8 @@ var PWD = process.cwd(),
     CIP_TAB = [],
     CIP_TAB_LENGTH = 0,
     CIP_TAB_CONTENT = [],
-    REQUEST_TAB = [];
+    REQUEST_TAB = [],
+    REQUEST_TAB2 = [];
 
 
 /// CREATE SERVER
@@ -108,37 +109,140 @@ var finishCreatingUrl = function(force){
         return 0;
     }
     var url = REQUEST_TAB.pop();
-    request.get({url: url.url, encoding: 'binary'}, function (err, response, body) {
-        console.log("GET REQUEST DATAS FOR CIP", url.cip);
-        //CIP_TAB_CONTENT.push({
-        //    cip: url.cip,
-        //    content: body
-        //});
-        finishCreatingUrl(true);
-        createFile({
-            cip: url.cip,
-            content: body
+
+    if(url){
+        request.get({url: url.url, encoding: 'binary'}, function (err, response, body) {
+            console.log("GET REQUEST DATAS FOR CIP", url.cip);
+            //CIP_TAB_CONTENT.push({
+            //    cip: url.cip,
+            //    content: body
+            //});
+            finishCreatingUrl(true);
+            createFile({
+                cip: url.cip,
+                content: body
+            });
+            //finishAllGather();
         });
-        //finishAllGather();
-    });
+    } else {
+        // TODO finish all treatment
+        // ? parseHTML(); with setTimeout to finish last CIP ?
+    }
+
 }
 
 var createFile = function(item){
-    fs.writeFile(FILE_FICHIER_CIP_BASE + item.cip + "/index.html", item.content, 'utf8', function () {
+    fs.writeFile(FILE_FICHIER_CIP_BASE + item.cip + "/infos.html", item.content, 'utf8', function () {
         console.log("CIP %s written. Rest %d request to do", item.cip, REQUEST_TAB.length);
     });
 };
 
-var finishAllGather = function(){
-    if(CIP_TAB_CONTENT.length < CIP_TAB_LENGTH){
-        return 0;
+//var finishAllGather = function(){
+//    if(CIP_TAB_CONTENT.length < CIP_TAB_LENGTH){
+//        return 0;
+//    }
+//    for(var i = 0, l = CIP_TAB_CONTENT.length; i < l; i++){
+//        (function(index) {
+//            fs.writeFile(FILE_FICHIER_CIP_BASE + CIP_TAB_CONTENT[index].cip + "/index.html", CIP_TAB_CONTENT[index].content, 'utf8', function () {
+//                console.log("CIP %s, %d/%d written", CIP_TAB_CONTENT[index].cip, i, CIP_TAB_CONTENT.length);
+//            });
+//        })(i);
+//    }
+//};
+
+var prepareAssociatedFiles = function() {
+    var item = REQUEST_TAB.pop();
+
+    if(item) {
+        fs.readFile(item.url, {encoding: 'utf8'}, function (err, data){
+            console.log("REQUEST_TAB LENGTH", REQUEST_TAB.length);
+            if(data) {
+                var $ = cheerio.load(data),
+                    pageTitle = $("title").text(),
+                    pdfLinkCount = $('.pdfLink').length,
+                    isSumRcpId = $('#sumRcp').length,
+                    isSumNoticeId = $('#sumNotice').length;
+
+                // TITLE IS EMPTY
+                if (pageTitle === 'Fiche info -  -  - BDM ANSM') {
+                    console.log("Empty page for CIP : ", item.cip);
+                }
+
+                // RCP IN HTML FORMAT
+                if (isSumRcpId > 0) {
+                    REQUEST_TAB2.push({
+                        title: pageTitle,
+                        cip: item.cip,
+                        data: data,
+                        filename: FILE_FICHIER_CIP_BASE + item.cip + '/rcp.html',
+                        url: URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + item.cip + '-0'
+                    });
+
+                    //(function(cip2) {
+                    //    var filename = 'rcp.html';
+                    //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
+                    //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + cip2+'-0').pipe(file);
+                    //    console.log('Find RCP HTML FOR %s', cip2);
+                    //})(item.cip);
+                }
+
+                // NOTICE IN HTML FORMAT
+                if (isSumNoticeId > 0) {
+                    REQUEST_TAB2.push({
+                        title: pageTitle,
+                        cip: item.cip,
+                        data: data,
+                        filename: FILE_FICHIER_CIP_BASE + item.cip + '/notice.html',
+                        url: URL_DB_PUBLIC_MEDICAMENT + 'notice-' + item.cip + '-0'
+                    });
+
+
+                    //(function(cip2) {
+                    //    var filename = 'notice.html';
+                    //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
+                    //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'notice-' + cip2+'-0').pipe(file);
+                    //    console.log('Find NOTICE HTML FOR %s', cip2);
+                    //})(item.cip);
+                }
+
+                // PDF TO DOWNLOAD
+                if (pdfLinkCount > 0) {
+                    console.log("PDF FIND FOR ", item.cip);
+                    for (var i = 0, l = pdfLinkCount; i < l; i++) {
+                        var filename = $('.pdfLink a')[i].attribs.href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
+                        REQUEST_TAB2.push({
+                            title: pageTitle,
+                            cip: item.cip,
+                            data: data,
+                            filename: filename,
+                            url: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename
+                        })
+
+                        //(function(cip, pdfLink) {
+                        //    var filename = pdfLink.match('rcp')? 'rpc.pdf': 'notice.pdf';
+                        //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip + '/' + filename);
+                        //    request.get(URL_DB_PUBLIC_MEDICAMENT + pdfLink).pipe(file);
+                        //})(item.cip, $('.pdfLink a')[i].attribs.href);
+                    }
+                }
+                prepareAssociatedFiles();
+            }
+        });
+    } else {
+        console.log("Finish preparing associated files");
+        downloadAssociatedFiles();
     }
-    for(var i = 0, l = CIP_TAB_CONTENT.length; i < l; i++){
-        (function(index) {
-            fs.writeFile(FILE_FICHIER_CIP_BASE + CIP_TAB_CONTENT[index].cip + "/index.html", CIP_TAB_CONTENT[index].content, 'utf8', function () {
-                console.log("CIP %s, %d/%d written", CIP_TAB_CONTENT[index].cip, i, CIP_TAB_CONTENT.length);
-            });
-        })(i);
+};
+
+var downloadAssociatedFiles = function(){
+    var item = REQUEST_TAB.pop();
+
+    if(item) {
+        var file = fs.createWriteStream(item.filename);
+        request.get(item.url).pipe(file);
+        console.log('Downloaded %s HTML FOR %s', item.filename, item.cip);
+    } else {
+        console.log("Finish downloading associated files");
     }
 };
 
@@ -146,65 +250,24 @@ var parseHTML = function(){
 
     // Read all CIP directories in CIPS
 
-    fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array){
-        for(var i = 0, l = cip_path_array.length; i<l; i++){
-            (function(cip_path){
-                fs.readFile(FILE_FICHIER_CIP_BASE + cip_path + '/index.html', {encoding: 'utf8'}, function (err, data){
-                    var $ = cheerio.load(data),
-                        pageTitle = $("title").text(),
-                        pdfLinkCount = $('.pdfLink').length,
-                        isSumRcpId = $('#sumRcp').length,
-                        isSumNoticeId = $('#sumNotice').length;
-
-                    // TITLE IS EMPTY
-                    if(pageTitle === 'Fiche info -  -  - BDM ANSM'){
-                        console.log("Empty page for CIP : ", cip_path);
-                        return true;
-                    }
-
-                    // RCP IN HTML FORMAT
-                    if(isSumRcpId > 0){
-                        (function(cip2) {
-                            var filename = 'rcp.html';
-                            var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
-                            request.get(URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + cip2+'-0').pipe(file);
-                            console.log('Find RCP HTML FOR %s', cip2);
-                        })(cip_path);
-                    }
-
-                    // NOTICE IN HTML FORMAT
-                    if(isSumNoticeId > 0){
-                        (function(cip2) {
-                            var filename = 'notice.html';
-                            var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
-                            request.get(URL_DB_PUBLIC_MEDICAMENT + 'notice-' + cip2+'-0').pipe(file);
-                            console.log('Find NOTICE HTML FOR %s', cip2);
-                        })(cip_path);
-                    }
-
-                    // PDF TO DOWNLOAD
-                    if(pdfLinkCount > 0){
-                        console.log("PDF FIND FOR ", cip_path);
-                        for(var i = 0, l = pdfLinkCount; i < l; i++){
-                            (function(cip, pdfLink) {
-                                var filename = pdfLink.match('rcp')? 'rpc.pdf': 'notice.pdf';
-                                var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip + '/' + filename);
-                                request.get(URL_DB_PUBLIC_MEDICAMENT + pdfLink).pipe(file);
-                            })(cip_path, $('.pdfLink a')[i].attribs.href);
-                        }
-                    }
-                });
-            })(cip_path_array[i]);
+    fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array) {
+        REQUEST_TAB = [];
+        for (var i = 0, l = cip_path_array.length; i < l; i++) {
+            REQUEST_TAB.push({
+                cip: cip_path_array[i],
+                url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/index.html'
+            });
         }
+        prepareAssociatedFiles();
     });
 };
 
 // 1. Download specialite file
 //getSpecialites();
 // 2. convert CSV to JSON data
-parseCSVToJSON();
+//parseCSVToJSON();
 // 3. Get RCP / Notice files
-//parseHTML();
+parseHTML();
 // 4. Construct the final page
 
 
