@@ -17,6 +17,7 @@ var PWD = process.cwd(),
     URL_FICHIER_SPECIALITE = 'http://agence-prd.ansm.sante.fr/php/ecodex/telecharger/lirecis.php',
     FILE_FICHIER_SPECIALITE = "./downloaded/specialites.csv",
     URL_FICHIER_CIP_BASE = 'http://agence-prd.ansm.sante.fr/php/ecodex/extrait.php?specid=',
+    URL_ANSM_SOURCE = "http://agence-prd.ansm.sante.fr/php/ecodex/",
     FILE_FICHIER_CIP_BASE = './CIPS/',
     URL_DB_PUBLIC_MEDICAMENT = 'http://m.base-donnees-publique.medicaments.gouv.fr/',
     URL_DB_PUBLIC_MEDICAMENT_INFO = URL_DB_PUBLIC_MEDICAMENT + 'info-',
@@ -121,7 +122,7 @@ var downloadDBPublicInfos = function(callback){
         });
 
     }, function(err){
-        callback0(null, true);
+        callback(null, true);
     });
 };
 
@@ -251,14 +252,17 @@ var readInfosHtmlFile = function(){
 
                 if(isANSMRCPNotice > 0){
                     for(i = 0, l = isANSMRCPNotice; i < l; i++){
-                        var url = $('a.leftMenu')[0].attribs.href,
-                            isRPC = url.match('typedoc=R') ? 'rcpANSM.html' : 'noticeANSM.html';
+                        var url = $('a.leftMenu')[i].attribs.href,
+                            isRPC = url.match('typedoc=R'),
+                            filename = url.match('typedoc=R') ? 'rcpANSM.html' : 'noticeANSM.html',
+                            url_fragment = url.match(/ref=.*.htm/)[0].split('=')[1];
+
                         REQUEST_TAB2.push({
                             title: '',
                             cip: item.cip,
                             data: data,
-                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + isRPC,
-                            url: URL_FICHIER_CIP_BASE + item.cip + url
+                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename,
+                            url: URL_ANSM_SOURCE + (isRPC ? 'rcp/' : 'notice/') + url_fragment
                         });
                     }
                 }
