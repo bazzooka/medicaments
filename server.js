@@ -5,6 +5,7 @@ var request = require('request'),
     fse = require('fs-extra'),
     cheerio = require('cheerio'),
     csv = require('fast-csv'),
+    async  = require('async'),
     csvStream = csv.format({delimiter: '	', objectMode: true, headers: false, quoteColumns: false});
     //path = require('path'),
     //express = require('express'),
@@ -23,7 +24,8 @@ var PWD = process.cwd(),
     CIP_TAB_LENGTH = 0,
     CIP_TAB_CONTENT = [],
     REQUEST_TAB = [],
-    REQUEST_TAB2 = [];
+    REQUEST_TAB2 = [],
+    CIP_NOT_IN_DB_PUBLIC_MEDICAMENT = [];
 
 
 /// CREATE SERVER
@@ -38,8 +40,8 @@ var getSpecialites = function(){
             console.log("Error when create -downloaded- folder");
             return true;
         }
-        request.get({url: URL_FICHIER_SPECIALITE, encoding: 'utf8'}, function (err, response, body) {
-            fs.writeFile(FILE_FICHIER_SPECIALITE, body, 'utf8', function () {
+        request.get({url: URL_FICHIER_SPECIALITE, encoding: null}, function (err, response, body) {
+            fs.writeFile(FILE_FICHIER_SPECIALITE, body, 'binary', function () {
                 console.log("Spécialités are downloaded");
             });
         });
@@ -64,108 +66,201 @@ var parseCSVToJSON = function(body){
     stream.pipe(csvStream);
 };
 
-var getCIPInformations = function(){
-
+var deleteAllCIPSDirectories = function(callback){
     console.log("Cleaning directories");
     fse.emptyDir(FILE_FICHIER_CIP_BASE, function(err){
-        if(err){
-            console.log("Error when delete CIPS folder");
-            return true;
-        }
-
-        for(var i = 0, l = CIP_TAB.length; i < l; i++){
-            (function(CIP, i){
-                console.log("Creating directories tree for %s %d/%d", CIP, i, CIP_TAB_LENGTH);
-                // Create directory for each CIP
-                mkdir(FILE_FICHIER_CIP_BASE+CIP+'/', function(err){
-                    if(err){
-                        console.log("Error when create -CIP- folder %s", CIP);
-                        return true;
-                    }
-                    console.log("Construct URL for CIP %s %d/%d", CIP, i, CIP_TAB_LENGTH);
-                    REQUEST_TAB.push({cip: CIP, url : URL_DB_PUBLIC_MEDICAMENT_INFO + CIP});
-
-                    finishCreatingUrl();
-                    //(function(cip1){
-                    //    request.get({url: URL_DB_PUBLIC_MEDICAMENT_INFO + cip1, encoding: 'binary'}, function (err, response, body) {
-                    //        if(cip1 === 64542736){
-                    //            console.log(body);
-                    //        }
-                    //        CIP_TAB_CONTENT.push({
-                    //            cip: cip1,
-                    //            content: body
-                    //        });
-                    //        finishAllGather();
-                    //    });
-                    //})(CIP);
-                });
-            })(CIP_TAB[i], i);
-        }
-    })
-};
-
-var finishCreatingUrl = function(force){
-    if(!force && REQUEST_TAB.length < CIP_TAB_LENGTH){
-        return 0;
-    }
-    var url = REQUEST_TAB.pop();
-
-    if(url){
-        request.get({url: url.url, encoding: 'binary'}, function (err, response, body) {
-            console.log("GET REQUEST DATAS FOR CIP", url.cip);
-            //CIP_TAB_CONTENT.push({
-            //    cip: url.cip,
-            //    content: body
-            //});
-            finishCreatingUrl(true);
-            createFile({
-                cip: url.cip,
-                content: body
-            });
-            //finishAllGather();
-        });
-    } else {
-        // TODO finish all treatment
-        // ? parseHTML(); with setTimeout to finish last CIP ?
-    }
-
-}
-
-var createFile = function(item){
-    fs.writeFile(FILE_FICHIER_CIP_BASE + item.cip + "/infos.html", item.content, 'utf8', function () {
-        console.log("CIP %s written. Rest %d request to do", item.cip, REQUEST_TAB.length);
+        callback(null, true);
     });
 };
 
-//var finishAllGather = function(){
-//    if(CIP_TAB_CONTENT.length < CIP_TAB_LENGTH){
-//        return 0;
-//    }
-//    for(var i = 0, l = CIP_TAB_CONTENT.length; i < l; i++){
-//        (function(index) {
-//            fs.writeFile(FILE_FICHIER_CIP_BASE + CIP_TAB_CONTENT[index].cip + "/index.html", CIP_TAB_CONTENT[index].content, 'utf8', function () {
-//                console.log("CIP %s, %d/%d written", CIP_TAB_CONTENT[index].cip, i, CIP_TAB_CONTENT.length);
-//            });
-//        })(i);
-//    }
-//};
+var createDirectories = function(callback0){
+    async.each(CIP_TAB, function(item, callback1){
+        mkdir(FILE_FICHIER_CIP_BASE+item+'/', function(err) {
+            console.log("Creating directories for %s", item);
+            if (err) {
+                console.log("Error when create -CIP- folder %s", item);
+                callback1("Errror mkdir", false);
+            }
+            callback1(null, true);
+        });
+    }, function(err){
+        callback0(null, true);
+    });
+};
 
-var prepareAssociatedFiles = function() {
-    var item = REQUEST_TAB.pop();
+var downloadDBPublicInfos = function(callback){
+    // Download from database public medicament
+    var nbJobToDo = CIP_TAB.length;
+    // Treat all CIP in parallel
+    async.eachSeries(CIP_TAB, function(item, callback1){
+        // Download and write in serie
+        async.waterfall([
+            // Download files info
+            function(callback2){
+                var CIP = this.cip;
+                request.get({url: URL_DB_PUBLIC_MEDICAMENT_INFO + CIP, encoding: 'binary'}, function (err, response, body) {
+                    if(err){
+                        console.log("Erreur in gathering CIP infos for CIP ", CIP);
+                        callback2("Erreur in gathering CIP infos for CIP "+ CIP);
+                    }
+                    console.log("GET RESPONSE DATAS FOR CIP", CIP);
+                    callback2(null, CIP, body);
+                });
+            }.bind({cip: item}),
+            function(cip, body, callback2){
+                var CIP = cip;
+                // Write file
+                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infos.html", body, 'utf8', function () {
+                    nbJobToDo--;
+                    console.log("CIP %s written. %d jobs to do.", CIP, nbJobToDo);
+                    callback2(null, true);
+                });
+            }
+        ], function(err){
+            callback1(null, true);
+        });
 
-    if(item) {
+    }, function(err){
+        callback0(null, true);
+    });
+};
+
+var downloadANSMInfos = function(callback0){
+    // Download from database public medicament
+    var nbJobToDo = CIP_TAB.length;
+    // Treat all CIP in parallel
+    async.eachSeries(CIP_TAB, function(item, callback1){
+        // Download and write in serie
+        async.waterfall([
+            // Download files info
+            function(callback2){
+                var CIP = this.cip;
+                request.get({url: URL_FICHIER_CIP_BASE + CIP, encoding: 'binary'}, function (err, response, body) {
+                    if(err){
+                        console.log("Erreur in gathering ANSM CIP infos for CIP ", CIP);
+                        callback2("Erreur in gathering ANSM CIP infos for CIP "+ CIP);
+                    }
+                    console.log("GET RESPONSE DATAS FOR ANSM CIP", CIP);
+                    callback2(null, CIP, body);
+                });
+            }.bind({cip: item}),
+            function(cip, body, callback2){
+                var CIP = cip;
+                // Write file
+                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infosANSM.html", body, 'utf8', function () {
+                    nbJobToDo--;
+                    console.log("CIP %s written. %d jobs to do.", CIP, nbJobToDo);
+                    callback2(null, true);
+                });
+            }
+        ], function(err){
+            callback1(null, true);
+        });
+
+    }, function(err){
+        callback0(null, true);
+    });
+};
+
+//var downloadDBPublicInfos = function(callback){
+//    callback(null, true);
+//}
+
+var downloadAndWriteCIPInfos = function(callback0){
+    async.parallel([downloadDBPublicInfos, downloadANSMInfos], function(err){
+        callback0(null, true);
+    });
+};
+
+var getCIPInformations = function(){
+    // JOB 0. DELETE ALL DIRECTORIES
+    // JOB 1. Create directories for each CIP
+    // JOB 2. Download all infos.html
+
+    async.series([deleteAllCIPSDirectories, createDirectories, downloadAndWriteCIPInfos], function(){
+        console.log("getCIPInformations is done");
+    });
+};
+
+var downloadAssociatedFiles = function(){
+    //var item = REQUEST_TAB.pop();
+    //
+    //if(item) {
+    //    var file = fs.createWriteStream(item.filename);
+    //    request.get(item.url).pipe(file);
+    //    console.log('Downloaded %s HTML FOR %s', item.filename, item.cip);
+    //} else {
+    //    console.log("Finish downloading associated files");
+    //}
+
+
+    var nbJobToDo = REQUEST_TAB2.length;
+    // Treat all CIP in parallel
+    async.eachSeries(REQUEST_TAB2, function(item, callback1){
+        // Download and write in serie
+        async.waterfall([
+            // Download files info
+            function(callback2){
+                var CIP = this.item.cip,
+                    item = this.item;
+                request.get({url: this.item.url, encoding: 'binary'}, function (err, response, body) {
+                    if(err){
+                        console.log("Erreur in gathering associated files for CIP ", CIP);
+                        callback2("Erreur in gathering CIP infos for CIP "+ CIP);
+                    }
+                    console.log("GET RESPONSE DATAS FOR CIP", CIP);
+                    callback2(null, CIP, body, item);
+                });
+            }.bind({item: item}),
+            function(cip, body, item, callback2){
+                var CIP = cip;
+                // Write file
+                fs.writeFile(item.filename, body, 'utf8', function () {
+                    nbJobToDo--;
+                    console.log("Associated files for %s written. %d jobs to do.", CIP, nbJobToDo);
+                    callback2(null, true);
+                });
+            }
+        ], function(err){
+            callback1(null, true);
+        });
+
+    }, function(err){
+        console.log("Downloading associated files finished");
+    });
+};
+
+var readInfosHtmlFile = function(){
+    var nbJobToDo = REQUEST_TAB.length;
+    async.each(REQUEST_TAB, function(item, callback){
         fs.readFile(item.url, {encoding: 'utf8'}, function (err, data){
-            console.log("REQUEST_TAB LENGTH", REQUEST_TAB.length);
+
             if(data) {
                 var $ = cheerio.load(data),
                     pageTitle = $("title").text(),
                     pdfLinkCount = $('.pdfLink').length,
                     isSumRcpId = $('#sumRcp').length,
-                    isSumNoticeId = $('#sumNotice').length;
+                    isSumNoticeId = $('#sumNotice').length,
+                    isANSMRCPNotice = $('a.leftMenu').length;
 
                 // TITLE IS EMPTY
                 if (pageTitle === 'Fiche info -  -  - BDM ANSM') {
+                    CIP_NOT_IN_DB_PUBLIC_MEDICAMENT.push(item.cip);
                     console.log("Empty page for CIP : ", item.cip);
+                }
+
+                if(isANSMRCPNotice > 0){
+                    for(i = 0, l = isANSMRCPNotice; i < l; i++){
+                        var url = $('a.leftMenu')[0].attribs.href,
+                            isRPC = url.match('typedoc=R') ? 'rcpANSM.html' : 'noticeANSM.html';
+                        REQUEST_TAB2.push({
+                            title: '',
+                            cip: item.cip,
+                            data: data,
+                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + isRPC,
+                            url: URL_FICHIER_CIP_BASE + item.cip + url
+                        });
+                    }
                 }
 
                 // RCP IN HTML FORMAT
@@ -225,25 +320,14 @@ var prepareAssociatedFiles = function() {
                         //})(item.cip, $('.pdfLink a')[i].attribs.href);
                     }
                 }
-                prepareAssociatedFiles();
             }
+            console.log("%d infos.html to parse", nbJobToDo);
+            callback(null, true);
         });
-    } else {
-        console.log("Finish preparing associated files");
+    }, function(err){
+        console.log("readInfosHtmlFile ended");
         downloadAssociatedFiles();
-    }
-};
-
-var downloadAssociatedFiles = function(){
-    var item = REQUEST_TAB.pop();
-
-    if(item) {
-        var file = fs.createWriteStream(item.filename);
-        request.get(item.url).pipe(file);
-        console.log('Downloaded %s HTML FOR %s', item.filename, item.cip);
-    } else {
-        console.log("Finish downloading associated files");
-    }
+    });
 };
 
 var parseHTML = function(){
@@ -253,14 +337,32 @@ var parseHTML = function(){
     fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array) {
         REQUEST_TAB = [];
         for (var i = 0, l = cip_path_array.length; i < l; i++) {
-            REQUEST_TAB.push({
-                cip: cip_path_array[i],
-                url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/index.html'
-            });
+            if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html')){
+                REQUEST_TAB.push({
+                    type: "infos.html",
+                    cip: cip_path_array[i],
+                    url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html'
+                });
+            }
+            if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html')){
+                REQUEST_TAB.push({
+                    type: "infosANSM.html",
+                    cip: cip_path_array[i],
+                    url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html'
+                });
+            }
+            else {
+                console.log("No informations on %s", cip_path_array[i]);
+            }
+
         }
-        prepareAssociatedFiles();
+        readInfosHtmlFile();
     });
 };
+
+var constructPage = function(){
+
+}
 
 // 1. Download specialite file
 //getSpecialites();
@@ -269,7 +371,10 @@ var parseHTML = function(){
 // 3. Get RCP / Notice files
 parseHTML();
 // 4. Construct the final page
+//constructPage();
 
+
+//getSpecialites();
 
 
 
