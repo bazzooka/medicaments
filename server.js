@@ -2,6 +2,7 @@ var request = require('request'),
     http = require('http'),
     fs = require('fs'),
     mkdir = require('mkdirp'),
+    mkdir = require('mkdirp'),
     fse = require('fs-extra'),
     cheerio = require('cheerio'),
     parse = require('csv-parse'),
@@ -20,6 +21,7 @@ var PWD = process.cwd(),
     FILE_FICHIER_CIP_BASE = './CIPS/',
     URL_DB_PUBLIC_MEDICAMENT = 'http://m.base-donnees-publique.medicaments.gouv.fr/',
     URL_DB_PUBLIC_MEDICAMENT_INFO = URL_DB_PUBLIC_MEDICAMENT + 'info-',
+    ALL_SPECIALITES_TAB = [];
     CIP_TAB = [],
     CIP_TAB_LENGTH = 0,
     CIP_TAB_CONTENT = [],
@@ -55,12 +57,16 @@ var parseCSVToJSON = function(){
 
     parser.on('readable', function(){
         while(record = parser.read()){
-            CIP_TAB.push(record);
+            ALL_SPECIALITES_TAB.push(record);
         }
     });
 
     parser.on('finish', function(){
         console.log("specialites.csv was successfully parsed.");
+        for(var i = 0, l = ALL_SPECIALITES_TAB.length; i < l; i++){
+            CIP_TAB.push(ALL_SPECIALITES_TAB[i][0]);
+        }
+        CIP_TAB_LENGTH = CIP_TAB.length;
         getCIPInformations();
     });
 
@@ -99,7 +105,7 @@ var downloadDBPublicInfos = function(callback){
             // Download files info
             function(callback2){
                 var CIP = this.cip;
-                request.get({url: URL_DB_PUBLIC_MEDICAMENT_INFO + CIP, encoding: 'binary'}, function (err, response, body) {
+                request.get({url: URL_DB_PUBLIC_MEDICAMENT_INFO + CIP, encoding: 'utf-8'}, function (err, response, body) {
                     if(err){
                         console.log("Erreur in gathering CIP infos for CIP ", CIP);
                         callback2("Erreur in gathering CIP infos for CIP "+ CIP);
@@ -111,7 +117,7 @@ var downloadDBPublicInfos = function(callback){
             function(cip, body, callback2){
                 var CIP = cip;
                 // Write file
-                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infos.html", body, 'utf8', function () {
+                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infos.html", body, 'utf-8', function () {
                     nbJobToDo--;
                     console.log("CIP %s written. %d jobs to do.", CIP, nbJobToDo);
                     callback2(null, true);
@@ -148,7 +154,7 @@ var downloadANSMInfos = function(callback0){
             function(cip, body, callback2){
                 var CIP = cip;
                 // Write file
-                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infosANSM.html", body, 'utf8', function () {
+                fs.writeFile(FILE_FICHIER_CIP_BASE + CIP + "/infosANSM.html", body, 'binary', function () {
                     nbJobToDo--;
                     console.log("CIP %s written. %d jobs to do.", CIP, nbJobToDo);
                     callback2(null, true);
@@ -204,8 +210,10 @@ var downloadAssociatedFiles = function(){
             // Download files info
             function(callback2){
                 var CIP = this.item.cip,
-                    item = this.item;
-                request.get({url: this.item.url, encoding: 'binary'}, function (err, response, body) {
+                    item = this.item,
+                    encoding = (item.isANSM || item.isPdf) ? 'binary' : 'utf-8';
+
+                request.get({url: this.item.url, encoding: encoding}, function (err, response, body) {
                     if(err){
                         console.log("Erreur in gathering associated files for CIP ", CIP);
                         callback2("Erreur in gathering CIP infos for CIP "+ CIP);
@@ -215,9 +223,10 @@ var downloadAssociatedFiles = function(){
                 });
             }.bind({item: item}),
             function(cip, body, item, callback2){
-                var CIP = cip;
+                var CIP = cip,
+                    encoding = (item.isANSM || item.isPdf) ? 'binary' : 'utf-8';
                 // Write file
-                fs.writeFile(item.filename, body, 'utf8', function () {
+                fs.writeFile(item.filename, body, encoding, function () {
                     nbJobToDo--;
                     console.log("Associated files for %s written. %d jobs to do.", CIP, nbJobToDo);
                     callback2(null, true);
@@ -235,7 +244,7 @@ var downloadAssociatedFiles = function(){
 var readInfosHtmlFile = function(){
     var nbJobToDo = REQUEST_TAB.length;
     async.each(REQUEST_TAB, function(item, callback){
-        fs.readFile(item.url, {encoding: 'utf8'}, function (err, data){
+        fs.readFile(item.url, {encoding: 'utf-8'}, function (err, data){
 
             if(data) {
                 var $ = cheerio.load(data),
@@ -260,6 +269,7 @@ var readInfosHtmlFile = function(){
 
                         REQUEST_TAB2.push({
                             title: '',
+                            isANSM: true,
                             cip: item.cip,
                             data: data,
                             filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename,
@@ -311,6 +321,7 @@ var readInfosHtmlFile = function(){
                     for (var i = 0, l = pdfLinkCount; i < l; i++) {
                         var filename = $('.pdfLink a')[i].attribs.href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
                         REQUEST_TAB2.push({
+                            isPdf : true,
                             title: pageTitle,
                             cip: item.cip,
                             data: data,
@@ -385,6 +396,5 @@ var start = function(){
 
 
 start();
-
 
 
