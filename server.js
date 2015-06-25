@@ -4,9 +4,8 @@ var request = require('request'),
     mkdir = require('mkdirp'),
     fse = require('fs-extra'),
     cheerio = require('cheerio'),
-    csv = require('fast-csv'),
-    async  = require('async'),
-    csvStream = csv.format({delimiter: '	', objectMode: true, headers: false, quoteColumns: false});
+    parse = require('csv-parse'),
+    async  = require('async');
     //path = require('path'),
     //express = require('express'),
     //bodyParser = require('body-parser'),
@@ -35,36 +34,37 @@ var PWD = process.cwd(),
 //app.use(bodyParser.urlencoded({extended:true}));
 
 
-var getSpecialites = function(){
+var getSpecialites = function(nextStepCallback){
     mkdir('./downloaded/', function(err){
         if(err){
             console.log("Error when create -downloaded- folder");
             return true;
         }
-        request.get({url: URL_FICHIER_SPECIALITE, encoding: null}, function (err, response, body) {
-            fs.writeFile(FILE_FICHIER_SPECIALITE, body, 'binary', function () {
+        request.get({url: URL_FICHIER_SPECIALITE, encoding: 'binary'}, function (err, response, body) {
+            fs.writeFile(FILE_FICHIER_SPECIALITE, body, 'utf-8', function () {
                 console.log("Spécialités are downloaded");
+                nextStepCallback && nextStepCallback();
             });
         });
     });
 };
 
-var parseCSVToJSON = function(body){
+var parseCSVToJSON = function(){
     var stream = fs.createReadStream("downloaded/specialites.csv");
-    console.log("Parsing CSV...");
-    var csvStream = csv()
-        .on("data", function(data){
-            if(data.join(',').match('Autorisation active')){
-                CIP_TAB.push(data[0].split('\t')[0]);
-            }
-        })
-        .on("end", function(){
-            console.log("Parsing done : ", CIP_TAB.length, ' CIP');
-            CIP_TAB_LENGTH = CIP_TAB.length;
-            getCIPInformations();
-        });
+    var parser = parse({delimiter: '\t', relax: true});
 
-    stream.pipe(csvStream);
+    parser.on('readable', function(){
+        while(record = parser.read()){
+            CIP_TAB.push(record);
+        }
+    });
+
+    parser.on('finish', function(){
+        console.log("specialites.csv was successfully parsed.");
+        getCIPInformations();
+    });
+
+    stream.pipe(parser);
 };
 
 var deleteAllCIPSDirectories = function(callback){
@@ -180,6 +180,7 @@ var getCIPInformations = function(){
 
     async.series([deleteAllCIPSDirectories, createDirectories, downloadAndWriteCIPInfos], function(){
         console.log("getCIPInformations is done");
+        parseHTML();
     });
 };
 
@@ -366,19 +367,24 @@ var parseHTML = function(){
 
 var constructPage = function(){
 
-}
+};
 
+var start = function(){
+  getSpecialites(parseCSVToJSON);
+};
+// 0. Start
+//start();
 // 1. Download specialite file
 //getSpecialites();
 // 2. convert CSV to JSON data
 //parseCSVToJSON();
 // 3. Get RCP / Notice files
-parseHTML();
+//parseHTML();
 // 4. Construct the final page
 //constructPage();
 
 
-//getSpecialites();
+start();
 
 
 
