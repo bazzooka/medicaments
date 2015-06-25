@@ -2,11 +2,11 @@ var request = require('request'),
     http = require('http'),
     fs = require('fs'),
     mkdir = require('mkdirp'),
-    mkdir = require('mkdirp'),
     fse = require('fs-extra'),
     cheerio = require('cheerio'),
     parse = require('csv-parse'),
-    async  = require('async');
+    async  = require('async'),
+    database = require('./database.js');
     //path = require('path'),
     //express = require('express'),
     //bodyParser = require('body-parser'),
@@ -67,7 +67,8 @@ var parseCSVToJSON = function(){
             CIP_TAB.push(ALL_SPECIALITES_TAB[i][0]);
         }
         CIP_TAB_LENGTH = CIP_TAB.length;
-        getCIPInformations();
+        database.start(ALL_SPECIALITES_TAB);
+        // getCIPInformations();
     });
 
     stream.pipe(parser);

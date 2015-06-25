@@ -31,6 +31,8 @@
     "fs-extra": "^0.20.0",
     "http": "0.0.0",
     "mkdirp": "^0.5.1",
+    "mongodb": "^2.0.35",
+    "mongodb-backup": "^1.2.1",
     "request": "^2.58.0"
   }
 }
