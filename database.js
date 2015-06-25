@@ -81,11 +81,11 @@ var getDifferentCIPStates = function(){
 
     MongoClient.connect(database_config.url, function(err, db) {
         var collection = db.collection('cips');
-        // Find some documents
-        collection.group({key: "statut_AMM"}), function(err, docs) {
-            console.log(docs);
+
+        collection.group({'statut_AMM':true}, {}, {"count":0}, function (obj, prev) { prev.count++; }, true, function(err, results) {
+            console.log(results);
             db.close();
-        };
+        });
     });
 };
 
@@ -94,12 +94,14 @@ var getDenominationStartWith = function(frag){
     MongoClient.connect(database_config.url, function(err, db) {
         var collection = db.collection('cips');
         // Find some documents
-        collection.find({denomination: 'ZEEL, crème'}), function(err, docs) {
-            if (err)
-                console.log(err);
-            console.log(docs);
+        collection.find({denomination : /ZELITREX.*/}).toArray(function(error, results) {
+            if (error) {
+                callback(error);
+            } else {
+                console.log(results);
+            }
             db.close();
-        };
+        });
     });
 };
 
@@ -108,11 +110,34 @@ var getDenominationStartWith = function(frag){
 module.exports = {
     start : function(ALL_CIP){
         ALL_CIP_DATAS = ALL_CIP;
-        async.series([/*backupDatabase, deleteDatabase, createDatabase, */countCipInDB], function(){
+        async.series([backupDatabase, deleteDatabase, createDatabase, countCipInDB], function(){
             console.log("Database make its job well");
             getDenominationStartWith(/dolip/);
         });
     }
 };
 
-module.exports.start();
+var parseCSVToJSON = function(){
+    var stream = fs.createReadStream("downloaded/specialites.csv");
+    var parser = parse({delimiter: '\t', relax: true});
+    var ALL_SPECIALITES_TAB = [];
+
+    parser.on('readable', function(){
+        while(record = parser.read()){
+            ALL_SPECIALITES_TAB.push(record);
+        }
+    });
+
+    parser.on('finish', function(){
+        console.log("specialites.csv was successfully parsed.");
+
+        module.exports.start(ALL_SPECIALITES_TAB);
+        // getCIPInformations();
+    });
+
+    stream.pipe(parser);
+};
+getDifferentCIPStates();
+//module.exports.start();
+
+//parseCSVToJSON();
