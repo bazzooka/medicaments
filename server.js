@@ -286,7 +286,7 @@ var readInfosHtmlFile = function(){
                     }
                 } else {
                     // RCP IN HTML FORMAT
-                    if (isSumRcpId > 0 && !infosHTMLWasDeleted) {
+                    if (isSumRcpId > 0 && !infosHTMLWasDeleted && !pdfLinkCount) {
                         REQUEST_TAB2.push({
                             title: pageTitle,
                             cip: item.cip,
@@ -304,7 +304,7 @@ var readInfosHtmlFile = function(){
                     }
 
                     // NOTICE IN HTML FORMAT
-                    if (isSumNoticeId > 0  && !infosHTMLWasDeleted) {
+                    if (isSumNoticeId > 0  && !infosHTMLWasDeleted && !pdfLinkCount) {
                         REQUEST_TAB2.push({
                             title: pageTitle,
                             cip: item.cip,
@@ -357,30 +357,57 @@ var readInfosHtmlFile = function(){
 };
 
 var parseHTML = function(){
-
-    fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array) {
-        REQUEST_TAB = [];
-        for (var i = 0, l = cip_path_array.length; i < l; i++) {
-            if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html')){
-                REQUEST_TAB.push({
-                    type: "infos.html",
-                    cip: cip_path_array[i],
-                    url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html'
-                });
-            }
-            if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html')){
+    for(var i = 0, l = ALL_SPECIALITES_TAB.length; i < l; i++){
+        var cip = ALL_SPECIALITES_TAB[i]['cip'];
+        // IF  RCP OR NOTICE NUMBER DOWNLOAD IT
+        if(ALL_SPECIALITES_TAB[i]['code_rcp_notice']){
+            if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip + '/infosANSM.html')){
                 REQUEST_TAB.push({
                     type: "infosANSM.html",
-                    cip: cip_path_array[i],
-                    url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html'
+                    cip: cip,
+                    url: FILE_FICHIER_CIP_BASE + cip + '/infosANSM.html'
                 });
             }
-            else {
-                console.log("No informations on %s", cip_path_array[i]);
-            }
+        } else if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip + '/infos.html')){
+            REQUEST_TAB.push({
+                type: "infos.html",
+                cip: cip,
+                url: FILE_FICHIER_CIP_BASE + cip + '/infos.html'
+            });
+        } else {
+            console.log("No informations on %s", cip);
         }
-        readInfosHtmlFile();
-    });
+    }
+
+    readInfosHtmlFile();
+
+    //fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array) {
+    //    REQUEST_TAB = [];
+    //    for (var i = 0, l = cip_path_array.length; i < l; i++) {
+    //        if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html')){
+    //            REQUEST_TAB.push({
+    //                type: "infos.html",
+    //                cip: cip_path_array[i],
+    //                url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infos.html'
+    //            });
+    //        }
+    //        if(fs.existsSync(FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html')){
+    //            REQUEST_TAB.push({
+    //                type: "infosANSM.html",
+    //                cip: cip_path_array[i],
+    //                url: FILE_FICHIER_CIP_BASE + cip_path_array[i] + '/infosANSM.html'
+    //            });
+    //        }
+    //        else {
+    //            console.log("No informations on %s", cip_path_array[i]);
+    //        }
+    //    }
+    //    readInfosHtmlFile();
+    //});
+};
+
+var getDatabase = function(callback){
+    database.getAllMedicaments(callback);
 };
 
 var constructPage = function(){
@@ -404,7 +431,10 @@ var start = function(){
 
 //start();
 
-parseHTML();
+getDatabase(function(docs){
+    ALL_SPECIALITES_TAB = docs;
+    parseHTML();
+});
 
 
 
