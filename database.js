@@ -65,6 +65,17 @@ var createDatabase = function(callback){
     });
 };
 
+var getAllMedicaments = function(callback){
+    MongoClient.connect(database_config.url, function(err, db) {
+        var collection = db.collection('cips');
+        // Find some documents
+        collection.find({}).toArray(function(err, docs) {
+            db.close();
+            callback(docs);
+        });
+    });
+}
+
 var countCipInDB = function(callback){
     MongoClient.connect(database_config.url, function(err, db) {
         var collection = db.collection('cips');
@@ -130,6 +141,10 @@ module.exports = {
             console.log("Database make its job well");
             getDenominationStartWith(/dolip/);
         });
+    },
+
+    getAllMedicaments: function(callback){
+        getAllMedicaments(callback);
     }
 };
 
