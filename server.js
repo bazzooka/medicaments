@@ -207,7 +207,7 @@ var downloadAssociatedFiles = function(){
 
     var nbJobToDo = REQUEST_TAB2.length;
     // Treat all CIP in parallel
-    async.eachLimit(REQUEST_TAB2, 5, function(item, callback1){
+    async.eachSeries(REQUEST_TAB2, function(item, callback1){
         // Download and write in serie
         async.waterfall([
             // Download files info
@@ -284,66 +284,66 @@ var readInfosHtmlFile = function(){
                             url: URL_ANSM_SOURCE + (isRPC ? 'rcp/' : 'notice/') + url_fragment
                         });
                     }
-                }
-
-                // RCP IN HTML FORMAT
-                if (isSumRcpId > 0 && !infosHTMLWasDeleted) {
-                    REQUEST_TAB2.push({
-                        title: pageTitle,
-                        cip: item.cip,
-                        data: data,
-                        filename: FILE_FICHIER_CIP_BASE + item.cip + '/rcp.html',
-                        url: URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + item.cip + '-0'
-                    });
-
-                    //(function(cip2) {
-                    //    var filename = 'rcp.html';
-                    //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
-                    //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + cip2+'-0').pipe(file);
-                    //    console.log('Find RCP HTML FOR %s', cip2);
-                    //})(item.cip);
-                }
-
-                // NOTICE IN HTML FORMAT
-                if (isSumNoticeId > 0  && !infosHTMLWasDeleted) {
-                    REQUEST_TAB2.push({
-                        title: pageTitle,
-                        cip: item.cip,
-                        data: data,
-                        filename: FILE_FICHIER_CIP_BASE + item.cip + '/notice.html',
-                        url: URL_DB_PUBLIC_MEDICAMENT + 'notice-' + item.cip + '-0'
-                    });
-
-
-                    //(function(cip2) {
-                    //    var filename = 'notice.html';
-                    //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
-                    //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'notice-' + cip2+'-0').pipe(file);
-                    //    console.log('Find NOTICE HTML FOR %s', cip2);
-                    //})(item.cip);
-                }
-
-                // PDF TO DOWNLOAD
-                if (pdfLinkCount > 0) {
-
-                    for (var i = 0, l = pdfLinkCount; i < l; i++) {
-                        var href = $('.pdfLink a')[i].attribs.href,
-                            filename = href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
-
+                } else {
+                    // RCP IN HTML FORMAT
+                    if (isSumRcpId > 0 && !infosHTMLWasDeleted) {
                         REQUEST_TAB2.push({
-                            isPdf : true,
                             title: pageTitle,
                             cip: item.cip,
                             data: data,
-                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename,
-                            url: URL_DB_PUBLIC_MEDICAMENT + href
+                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/rcp.html',
+                            url: URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + item.cip + '-0'
                         });
 
-                        //(function(cip, pdfLink) {
-                        //    var filename = pdfLink.match('rcp')? 'rpc.pdf': 'notice.pdf';
-                        //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip + '/' + filename);
-                        //    request.get(URL_DB_PUBLIC_MEDICAMENT + pdfLink).pipe(file);
-                        //})(item.cip, $('.pdfLink a')[i].attribs.href);
+                        //(function(cip2) {
+                        //    var filename = 'rcp.html';
+                        //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
+                        //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'rcp-' + cip2+'-0').pipe(file);
+                        //    console.log('Find RCP HTML FOR %s', cip2);
+                        //})(item.cip);
+                    }
+
+                    // NOTICE IN HTML FORMAT
+                    if (isSumNoticeId > 0  && !infosHTMLWasDeleted) {
+                        REQUEST_TAB2.push({
+                            title: pageTitle,
+                            cip: item.cip,
+                            data: data,
+                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/notice.html',
+                            url: URL_DB_PUBLIC_MEDICAMENT + 'notice-' + item.cip + '-0'
+                        });
+
+
+                        //(function(cip2) {
+                        //    var filename = 'notice.html';
+                        //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip2 + '/' + filename);
+                        //    request.get(URL_DB_PUBLIC_MEDICAMENT + 'notice-' + cip2+'-0').pipe(file);
+                        //    console.log('Find NOTICE HTML FOR %s', cip2);
+                        //})(item.cip);
+                    }
+
+                    // PDF TO DOWNLOAD
+                    if (pdfLinkCount > 0) {
+
+                        for (var i = 0, l = pdfLinkCount; i < l; i++) {
+                            var href = $('.pdfLink a')[i].attribs.href,
+                                filename = href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
+
+                            REQUEST_TAB2.push({
+                                isPdf : true,
+                                title: pageTitle,
+                                cip: item.cip,
+                                data: data,
+                                filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename,
+                                url: URL_DB_PUBLIC_MEDICAMENT + href
+                            });
+
+                            //(function(cip, pdfLink) {
+                            //    var filename = pdfLink.match('rcp')? 'rpc.pdf': 'notice.pdf';
+                            //    var file = fs.createWriteStream(FILE_FICHIER_CIP_BASE + cip + '/' + filename);
+                            //    request.get(URL_DB_PUBLIC_MEDICAMENT + pdfLink).pipe(file);
+                            //})(item.cip, $('.pdfLink a')[i].attribs.href);
+                        }
                     }
                 }
             }
@@ -357,8 +357,6 @@ var readInfosHtmlFile = function(){
 };
 
 var parseHTML = function(){
-
-    // Read all CIP directories in CIPS
 
     fs.readdir(FILE_FICHIER_CIP_BASE, function(error, cip_path_array) {
         REQUEST_TAB = [];
@@ -380,7 +378,6 @@ var parseHTML = function(){
             else {
                 console.log("No informations on %s", cip_path_array[i]);
             }
-
         }
         readInfosHtmlFile();
     });
@@ -405,7 +402,9 @@ var start = function(){
 //constructPage();
 
 
-start();
+//start();
+
+parseHTML();
 
 
 
