@@ -21,13 +21,15 @@ var PWD = process.cwd(),
     FILE_FICHIER_CIP_BASE = './CIPS/',
     URL_DB_PUBLIC_MEDICAMENT = 'http://m.base-donnees-publique.medicaments.gouv.fr/',
     URL_DB_PUBLIC_MEDICAMENT_INFO = URL_DB_PUBLIC_MEDICAMENT + 'info-',
+    URL_DB_PUBLIC_MEDICAMENT_PDF = URL_DB_PUBLIC_MEDICAMENT + 'pdf/',
     ALL_SPECIALITES_TAB = [];
     CIP_TAB = [],
     CIP_TAB_LENGTH = 0,
     CIP_TAB_CONTENT = [],
     REQUEST_TAB = [],
     REQUEST_TAB2 = [],
-    CIP_NOT_IN_DB_PUBLIC_MEDICAMENT = [];
+    CIP_NOT_IN_DB_PUBLIC_MEDICAMENT = [],
+    FILES_TO_DELETE = [];
 
 
 /// CREATE SERVER
@@ -68,7 +70,7 @@ var parseCSVToJSON = function(){
         }
         CIP_TAB_LENGTH = CIP_TAB.length;
         database.start(ALL_SPECIALITES_TAB);
-        // getCIPInformations();
+        getCIPInformations();
     });
 
     stream.pipe(parser);
@@ -205,7 +207,7 @@ var downloadAssociatedFiles = function(){
 
     var nbJobToDo = REQUEST_TAB2.length;
     // Treat all CIP in parallel
-    async.eachSeries(REQUEST_TAB2, function(item, callback1){
+    async.eachLimit(REQUEST_TAB2, 5, function(item, callback1){
         // Download and write in serie
         async.waterfall([
             // Download files info
@@ -253,12 +255,17 @@ var readInfosHtmlFile = function(){
                     pdfLinkCount = $('.pdfLink').length,
                     isSumRcpId = $('#sumRcp').length,
                     isSumNoticeId = $('#sumNotice').length,
-                    isANSMRCPNotice = $('a.leftMenu').length;
+                    isANSMRCPNotice = $('a.leftMenu').length,
+                    infosHTMLWasDeleted = false;
 
                 // TITLE IS EMPTY
                 if (pageTitle === 'Fiche info -  -  - BDM ANSM') {
                     CIP_NOT_IN_DB_PUBLIC_MEDICAMENT.push(item.cip);
                     console.log("Empty page for CIP : ", item.cip);
+
+                    fse.removeSync(item.url);
+                    infosHTMLWasDeleted = true;
+
                 }
 
                 if(isANSMRCPNotice > 0){
@@ -280,7 +287,7 @@ var readInfosHtmlFile = function(){
                 }
 
                 // RCP IN HTML FORMAT
-                if (isSumRcpId > 0) {
+                if (isSumRcpId > 0 && !infosHTMLWasDeleted) {
                     REQUEST_TAB2.push({
                         title: pageTitle,
                         cip: item.cip,
@@ -298,7 +305,7 @@ var readInfosHtmlFile = function(){
                 }
 
                 // NOTICE IN HTML FORMAT
-                if (isSumNoticeId > 0) {
+                if (isSumNoticeId > 0  && !infosHTMLWasDeleted) {
                     REQUEST_TAB2.push({
                         title: pageTitle,
                         cip: item.cip,
@@ -318,17 +325,19 @@ var readInfosHtmlFile = function(){
 
                 // PDF TO DOWNLOAD
                 if (pdfLinkCount > 0) {
-                    console.log("PDF FIND FOR ", item.cip);
+
                     for (var i = 0, l = pdfLinkCount; i < l; i++) {
-                        var filename = $('.pdfLink a')[i].attribs.href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
+                        var href = $('.pdfLink a')[i].attribs.href,
+                            filename = href.match('rcp') ? 'rpc.pdf' : 'notice.pdf';
+
                         REQUEST_TAB2.push({
                             isPdf : true,
                             title: pageTitle,
                             cip: item.cip,
                             data: data,
-                            filename: filename,
-                            url: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename
-                        })
+                            filename: FILE_FICHIER_CIP_BASE + item.cip + '/' + filename,
+                            url: URL_DB_PUBLIC_MEDICAMENT + href
+                        });
 
                         //(function(cip, pdfLink) {
                         //    var filename = pdfLink.match('rcp')? 'rpc.pdf': 'notice.pdf';
@@ -338,7 +347,7 @@ var readInfosHtmlFile = function(){
                     }
                 }
             }
-            console.log("%d infos.html to parse", nbJobToDo);
+                console.log("%d infos.html to parse", --nbJobToDo);
             callback(null, true);
         });
     }, function(err){
@@ -397,5 +406,6 @@ var start = function(){
 
 
 start();
+
 
 

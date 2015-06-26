@@ -105,6 +105,22 @@ var getDenominationStartWith = function(frag){
     });
 };
 
+var simpleFindTest = function(){
+    console.log("simpleFindTest");
+    MongoClient.connect(database_config.url, function(err, db) {
+        var collection = db.collection('cips');
+        // Find some documents
+        collection.find({statut_AMM : /.*suspendue.*/}).toArray(function(error, results) {
+            if (error) {
+                callback(error);
+            } else {
+                console.log(results);
+            }
+            db.close();
+        });
+    });
+};
+
 
 
 module.exports = {
@@ -137,7 +153,7 @@ var parseCSVToJSON = function(){
 
     stream.pipe(parser);
 };
-getDifferentCIPStates();
+//simpleFindTest();
 //module.exports.start();
 
 //parseCSVToJSON();
