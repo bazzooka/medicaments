@@ -1,0 +1,113 @@
+<div class="header-group indication-therapeutique">
+    <div class="title">Indications thérapeutiques</div>
+    %INDICATION_THERAPEUTIQUE%
+</div>
+<div class="header-group groupe-generique">
+    <div class="title">Groupe(s) générique(s)</div>
+    {{ if(it.generique.length === 0){ }}
+    Ce médicament n'appartient à aucun groupe générique.
+    {{ } else { }}
+    <ul>
+        {{~it.generique :item:index}}
+        <li>{{=item.libelle}}</li>
+        {{~}}
+    </ul>
+    {{ } }}
+</div>
+<div class="header-group composition-substance-active">
+    <div class="title">Composition en substances actives</div>
+    {{ if(it.composition && it.composition.length){ }}
+        {{= it.composition[0].designation_element }} (composition pour {{= it.composition[0].reference_dosage }})
+        <ul>
+            {{~it.composition :item:index}}
+            <li>{{= item.denomination_substance}} {{=item.dosage_substance}}</li>
+            {{~}}
+        </ul>
+    {{ } else { }}
+        Pas de substance active
+    {{ } }}
+    </div>
+<div class="header-group presentation">
+    <div class="title">Présentation(s)</div>
+    <ul>
+        {{~it.presentation :item:index}}
+        <li>{{= item.libelle}} {{=item.dosage_substance}}</li>
+        <ul>
+            <li>Code CIP: {{= item.cip7}} ou {{=item.cip13}}</li>
+            <li>Déclaration de commercialisation : {{=item.date_declaration}}</li>
+            <li>{{= item.agrement_collectivite ? "Présentation agrée aux collectivités" : "Cette présentation n'est pas agréée aux collectivités"}}</li>
+            {{ if(item.prix === ""){ }}
+            <li>Prix libre, médicament non remboursable</li>
+            {{ } else { }}
+            <li>Prix : {{=item.prix }}€ hors honoraire de dispensation</li>
+            <li>Taux de remboursement :  {{=item.taux_remboursement }}</li>
+            {{ } }}
+
+        </ul>
+        {{~}}
+    </ul>
+</div>
+<div class="header-group smr">
+    <div class="title">Service médical rendu (SMR)</div>
+    {{ if(it.avisASMR.length) { }}
+    Les libellés affichés ci-dessous ne sont que des résumés ou extraits issus des avis rendus par
+    la Commission de la Transparence.
+    Seul l'avis complet de la Commission de la Transparence fait référence.
+    Cet avis est consultable à partir du lien "Avis du jj/mm/aaaa" ou encore sur demande auprès de
+    la HAS.
+    Les avis et synthèses d'avis contiennent un paragraphe sur la place du médicament dans la stratégie thérapeutique.
+    <ul>
+        {{~it.avisSMR :item:value}}
+        <li>Avis du : {{=item.date_avis}}</li>
+        <li>Valeur du SMR : {{=item.valeur_SMR}}</li>
+        <li>Motif de l'évaluation : {{=item.motif_evaluation}}</li>
+        <li>Résumé : {{=item.libelle_SMR}}</li>
+        {{~}}
+    </ul>
+    {{ }  else { }}
+    Ce médicament étant un générique, le SMR n'a pas été évalué par la Commission de la Transparence (CT).
+    Il est possible de se référer à la/aux spécialité(s) de référence du groupe générique auquel
+    appartient ce médicament
+    {{  } }}
+</div>
+<div class="header-group asmr">
+    <div class="title">Amélioration du service médical rendu (ASMR)</div>
+    {{ if(it.avisASMR.length) { }}
+    Les libellés affichés ci-dessous ne sont que des résumés ou extraits issus des avis rendus
+    par la Commission de la Transparence.
+    Seul l'avis complet de la Commission de la Transparence fait référence.
+    Cet avis est consultable à partir du lien "Avis du jj/mm/aaaa" ou encore sur demande auprès de la HAS.
+    Les avis et synthèses d'avis contiennent un paragraphe sur la
+    place du médicament dans la stratégie thérapeutique.
+    <ul>
+        {{~it.avisASMR :item:value}}
+        <li>Avis du : {{=item.date_avis}}</li>
+        <li>Valeur du ASMR : {{=item.valeur_ASMR}}</li>
+        <li>Motif de l'évaluation : {{=item.motif_evaluation}}</li>
+        <li>Résumé : {{=item.libelle_ASMR}}</li>
+        {{~}}
+    </ul>
+    {{ }  else { }}
+    Ce médicament étant un générique, le SMR n'a pas été évalué par la Commission de la Transparence (CT).
+    Il est possible de se référer à la/aux spécialité(s) de référence du groupe générique auquel
+    appartient ce médicament
+    {{  } }}
+</div>
+<div class="header-group autres-infos">
+    <div class="title">Autres informations</div>
+    <ul>
+        <li>Titulaire de l'autorisation : {{= it.titulaire.join(',') }}</li>
+        {{ if(it.prescription){ }}
+        <li>
+            Conditions de prescription et de délivrance :
+            <ul>
+                {{~it.prescription :item:index}}
+                <li>{{=item.condition}}</li>
+                {{~}}
+            </ul>
+        </li>
+        {{ } }}
+        <li>Statut de l'autorisation : {{=it.statut_AMM}}</li>
+        <li>Code CIS : {{=it.cis}}</li>
+    </ul>
+</div>

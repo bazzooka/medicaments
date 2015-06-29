@@ -9,6 +9,9 @@ var
     },
     ALL_CIP_DATAS = null;
 
+
+var collections_NAMES = ["specialite", "specialiteAddon", "presentation", "composition", "avisSMR", "avisASMR", "liensAvis", "generique", "prescription"];
+
 var backupDatabase = function(callback){
     backup({
         uri: database_config.url, // mongodb://<dbuser>:<dbpassword>@<dbdomain>.mongolab.com:<dbport>/<dbdatabase>
@@ -207,10 +210,12 @@ var insertSpecialiteAddon = function(datas, callback){
                 voies: datas[i][3].split(';'),
                 statut_AMM: datas[i][4],
                 type_procedure: datas[i][5],
-                Statut_bdm: datas[i][6],
-                numero_autorisation_eur: datas[i][7],
-                titulaire: datas[i][8].split(';'),
-                surveillance: datas[i][9]
+                etat_commercialisation : datas[i][6],
+                date_amm: datas[i][7],
+                Statut_bdm: datas[i][8],
+                numero_autorisation_eur: datas[i][9],
+                titulaire: datas[i][10].split(';'),
+                surveillance: datas[i][11]
             });
         }
 
@@ -266,12 +271,13 @@ var insertPresentation = function(datas, callback){
                 cip7: datas[i][1],
                 libelle: datas[i][2],
                 statut: datas[i][3],
-                date_declaration: datas[i][4],
-                cip13: datas[i][5],
-                agrement_collectivite: datas[i][6],
-                taux_remboursement: datas[i][7].split(';'),
-                prix: datas[i][8],
-                condition_remboursement: datas[i][9]
+                etat: datas[i][4],
+                date_declaration: datas[i][5],
+                cip13: datas[i][6],
+                agrement_collectivite: datas[i][7],
+                taux_remboursement: datas[i][8].split(';'),
+                prix: datas[i][9],
+                condition_remboursement: datas[i][10]
             });
         }
 
@@ -519,8 +525,8 @@ var insertGeneriques = function(datas, callback){
                 identifiant: datas[i][0],
                 libelle: datas[i][1],
                 cis: datas[i][2],
-                type: datas[i][3],
-                ordre: datas[i][4]
+                type: parseInt(datas[i][3]),
+                ordre: parseInt(datas[i][4])
             });
         }
 
@@ -609,6 +615,84 @@ var compareSpecialiteAndAddon = function(){
     });
 };
 
+var getAllCIP = function(callback){
+    MongoClient.connect(database_config.url, function(err, db) {
+        var specialiteAddons = db.collection(collections_NAMES[1]);
+
+        specialiteAddons.find({}, {_id:0, cis: 1, denomination: 1}).toArray(function(err, docs){
+            if(err){
+                throw "Erreur on getAllCIP";
+            }
+            callback && callback(docs);
+            db.close();
+        });
+    });
+};
+
+var getAllInfosOnCIP = function(cip, callback){
+    MongoClient.connect(database_config.url, function(err, db) {
+        var specialiteAddons = db.collection(collections_NAMES[1]),
+            presentation = db.collection(collections_NAMES[2]),
+            composition = db.collection(collections_NAMES[3]),
+            avisSMR = db.collection(collections_NAMES[4]),
+            avisASMR = db.collection(collections_NAMES[5]),
+            generique = db.collection(collections_NAMES[7]),
+            prescription = db.collection(collections_NAMES[8]);
+
+        specialiteAddons.find({cis: cip}).toArray(function(err, docs){
+            var doc = docs[0];
+            async.each([{
+                collection: presentation,
+                name : "presentation"
+            }, {
+                collection: composition,
+                name : "composition"
+            }, {
+                collection: avisSMR,
+                name : "avisSMR"
+            }, {
+                collection: avisASMR,
+                name : "avisASMR"
+            }, {
+                collection: generique,
+                name : "generique"
+            }, {
+                collection: prescription,
+                name : "prescription"
+            }], function(item, callback){
+                item.collection.find({cis: cip}).toArray(function(err, data){
+                    doc[item.name] = data;
+                    callback(null, true);
+                });
+            }, function(err){
+                db.close();
+                if(err){
+                    throw "Error in getAllCIPINfos";
+                }
+                callback(doc);
+            });
+        });
+    });
+};
+
+var addNoNoticeCIP = function(cip, callback){
+    console.log("No notice for CIP %s", cip);
+    MongoClient.connect(database_config.url, function(err, db) {
+        var noNotice = db.collection('noNotice');
+
+            noNotice.insert({cip: cip}, function(err, result){
+                if(err){
+                    console.log(err);
+                    throw "Erreur in first database noNotice";
+                }
+                db.close();
+                callback && callback(null, true);
+            });
+
+
+    });
+};
+
 module.exports = {
     start : function(ALL_CIP){
         ALL_CIP_DATAS = ALL_CIP;
@@ -633,6 +717,10 @@ module.exports = {
     insertLienAvis: insertLienAvis,
     insertGeneriques: insertGeneriques,
     insertPrescription: insertPrescription,
+
+    getAllCIP: getAllCIP,
+    getAllInfosOnCIP: getAllInfosOnCIP,
+    addNoNoticeCIP: addNoNoticeCIP,
 
 
     compareSpecialiteAndAddon : compareSpecialiteAndAddon

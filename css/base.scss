@@ -1,0 +1,50 @@
+$background-grey: #4f4d4d;
+
+body{
+  background: whitesmoke;
+  margin: 0;
+  padding: 0;
+}
+
+.header-container{
+  background-color: $background-grey;
+  color: white;
+  padding: 2vh 2vw;
+  font-size: 3vw;
+}
+
+.before-content-container{
+  padding: 2vw;
+  .liste-infos, .date-amm{
+    display: inline-block;
+    width: 50%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .date-amm{
+    text-align: right;
+    vertical-align: top;
+  }
+}
+
+.header-group{
+  width: 95%;
+  margin-left: 2.5%;
+
+  .title {
+    background-color: $background-grey;
+    color: white;
+    padding: 2vh;
+    font-size: 2.5vw;
+  }
+}
+
+.indication-therapeutique {
+  .AmmNoticeTitre1{
+    display: none;
+  }
+  p:nth-child(3){
+    display: none;
+  }
+}
