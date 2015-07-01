@@ -5,22 +5,34 @@
     <title>{{= it.denomination}}</title>
 </head>
 <body>
-    <div class="info-container">
-        <div class="header-container">
-            <div class="title">{{= it.denomination}}</div>
-        </div>
-        <div class="before-content-container">
-            <ul class="liste-infos">
-                {{= it.ordonnance ? "<li>Ce médicament est disponible sous ordonnance</li>" : ""}}
-                {{= (it.remboursable ? "<li>Ce médicament est remboursable</li>" : "")}}
-                {{= it.isGroupeGenerique ? "<li>Ce médicament appartient à un groupe générique de médicaments.</li>" : ""}}
-            </ul><!--
+    <div class="tab-container">
+        <div class="header-title-container">
+            <div class="header-container">
+                <div class="title">{{= it.denomination}}</div>
+            </div>
+            <div class="tab-header">
+                <div class="table-title" data-tab="info-container">Infos</div><!--
+                --><div class="table-title" data-tab="notice-container">Notice</div><!--
+                --><div class="table-title" data-tab="rcp-container">RCP</div>
+            </div>
+            <div class="tab info-container current">
 
-            --><div class="date-amm">Date de l'autorisation : {{= it.date_amm }}</div>
+                <div class="before-content-container">
+                    <ul class="liste-infos">
+                        {{= it.ordonnance ? "<li>Ce médicament est disponible sous ordonnance</li>" : ""}}
+                        {{= (it.remboursable ? "<li>Ce médicament est remboursable</li>" : "")}}
+                        {{= it.isGroupeGenerique ? "<li>Ce médicament appartient à un groupe générique de médicaments.</li>" : ""}}
+                    </ul><!--
+
+                    --><div class="date-amm">Date de l'autorisation : {{= it.date_amm }}</div>
+                </div>
+                <div class="rubrique">
+                    {{#def.rubriques}}
+                </div>
+            </div>
         </div>
-        <div class="rubrique">
-            {{#def.rubriques}}
-        </div>
+        <div class="tab rcp-container">%RCP_CURSOR%</div>
+        <div class="tab notice-container">%NOTICE_CURSOR%</div>
     </div>
     <script type="text/javascript" src="../../js/base.js"></script>
     <link rel="stylesheet" href="../../css/base.css">

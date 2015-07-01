@@ -334,7 +334,7 @@ var insertComposition = function(datas, callback){
                 dosage_substance: datas[i][4],
                 reference_dosage: datas[i][5],
                 nature_composant: datas[i][6],
-                numero_liaison: datas[i][7]
+                numero_liaison: parseInt(datas[i][7])
             });
         }
 
@@ -602,7 +602,6 @@ var compareSpecialiteAndAddon = function(){
                 allAddonsCIS.push(docs[i].cis);
             }
             specialite.find({'cip': {$nin: allAddonsCIS}}).toArray(function(err, docNotInAddons){
-                console.log(docNotInAddons.length);
                 specialite.count(function(err, count) {
                     console.log("%d specialites", count);
                     specialiteAddon.count(function(err, count) {
@@ -660,10 +659,18 @@ var getAllInfosOnCIP = function(cip, callback){
                 collection: prescription,
                 name : "prescription"
             }], function(item, callback){
-                item.collection.find({cis: cip}).toArray(function(err, data){
-                    doc[item.name] = data;
-                    callback(null, true);
-                });
+                if(item.name === "composition"){
+                    item.collection.find({cis: cip}).sort({designation_element: 1, numero_liaison: 1, nature_composant: 1}).toArray(function(err, data){
+                        doc[item.name] = data;
+                        callback(null, true);
+                    });
+                } else {
+                    item.collection.find({cis: cip}).toArray(function(err, data){
+                        doc[item.name] = data;
+                        callback(null, true);
+                    });
+                }
+
             }, function(err){
                 db.close();
                 if(err){
@@ -675,12 +682,43 @@ var getAllInfosOnCIP = function(cip, callback){
     });
 };
 
-var addNoNoticeCIP = function(cip, callback){
-    console.log("No notice for CIP %s", cip);
+var getGeneriques = function(callbackGeneral){
+    console.log("Get all génériques");
+
+    MongoClient.connect(database_config.url, function(err, db){
+        var generique = db.collection('generique'),
+            specialite = db.collection('specialite'),
+            allGeneriques = [];
+
+        generique.find({}, {identifiant: 1, cis: 1, libelle: 1, type: 1, ordre: 1, _id: 0}).sort({identifiant: 1, ordre: 1})/*.limit(100)*/.toArray(function(err, docs){
+            var index = 0,
+                max = docs.length;
+            async.each(docs, function(item, callback){
+
+                specialite.find({cip: item.cis}, {_id: 0, cip: 1, denomination: 1, etat: 1}).toArray(function(err, spec){
+                    console.log("Get génériques %s", Math.round((index++)*100/max));
+                    item.med = spec[0];
+                    allGeneriques.push(item);
+                    callback(null, true);
+                });
+            }, function(err){
+                if(err){
+                    callbackGeneral && callbackGeneral("erreur getGeneriques", true);
+                }
+
+                callbackGeneral && callbackGeneral(allGeneriques);
+                db.close();
+            });
+        });
+    });
+};
+
+var addNoNoticeCIP = function(item, callback){
+    console.log("No notice for CIP %s", item.cip);
     MongoClient.connect(database_config.url, function(err, db) {
         var noNotice = db.collection('noNotice');
 
-            noNotice.insert({cip: cip}, function(err, result){
+            noNotice.insert(item, function(err, result){
                 if(err){
                     console.log(err);
                     throw "Erreur in first database noNotice";
@@ -690,6 +728,21 @@ var addNoNoticeCIP = function(cip, callback){
             });
 
 
+    });
+};
+
+var getNoNoticeCIP = function(callback){
+    console.log("getNoNoticeCIP");
+    MongoClient.connect(database_config.url, function(err, db) {
+        var noNotice = db.collection('noNotice');
+
+        noNotice.find({}).toArray(function(err, docs){
+            if(err){
+                throw err;
+            }
+            callback && callback(null, docs);
+            db.close();
+        });
     });
 };
 
@@ -721,6 +774,8 @@ module.exports = {
     getAllCIP: getAllCIP,
     getAllInfosOnCIP: getAllInfosOnCIP,
     addNoNoticeCIP: addNoNoticeCIP,
+    getGeneriques: getGeneriques,
+    getNoNoticeCIP: getNoNoticeCIP,
 
 
     compareSpecialiteAndAddon : compareSpecialiteAndAddon

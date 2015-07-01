@@ -48,3 +48,26 @@ body{
     display: none;
   }
 }
+
+.tab-container{
+  .tab{
+    display: none;
+
+    &.current{
+      display: block;
+    }
+  }
+
+  .table-title {
+    display: inline-block;
+    width: 33.33%;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    font-size: 2.5vw;
+  }
+}
+
+.info-container{
+  font-size: 2.2vw;
+}

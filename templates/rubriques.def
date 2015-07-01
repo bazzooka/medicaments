@@ -9,20 +9,31 @@
     {{ } else { }}
     <ul>
         {{~it.generique :item:index}}
-        <li>{{=item.libelle}}</li>
+        <li><a href="../../GENERIQUES/generique-{{=it.generique[0].identifiant}}.html">{{=item.libelle}}</a></li>
         {{~}}
     </ul>
     {{ } }}
 </div>
 <div class="header-group composition-substance-active">
     <div class="title">Composition en substances actives</div>
-    {{ if(it.composition && it.composition.length){ }}
-        {{= it.composition[0].designation_element }} (composition pour {{= it.composition[0].reference_dosage }})
-        <ul>
-            {{~it.composition :item:index}}
-            <li>{{= item.denomination_substance}} {{=item.dosage_substance}}</li>
-            {{~}}
-        </ul>
+    {{ if(it.composition_formatted){ }}
+        {{ for(var elt in it.composition_formatted){ }}
+            {{= elt }} composition pour {{= it.composition_formatted[elt][0].reference_dosage }}
+                <ul>
+                    {{~it.composition_formatted[elt] :item:index}}
+                        <li>{{= item.denomination_substance}} {{=item.dosage_substance}}</li>
+                        {{ if( item.ft && item.ft.length){ }}
+                            <ul>
+                                {{~item.ft :elt2:index2}}
+                                    <li> sous forme de {{= elt2.denomination_substance}} {{=elt2.dosage_substance}}</li>
+                                {{~}}
+                            </ul>
+                        {{ } }}
+                    {{~}}
+                </ul>
+        {{ } }}
+
+
     {{ } else { }}
         Pas de substance active
     {{ } }}
@@ -49,7 +60,7 @@
 </div>
 <div class="header-group smr">
     <div class="title">Service médical rendu (SMR)</div>
-    {{ if(it.avisASMR.length) { }}
+    {{ if(it.avisSMR.length) { }}
     Les libellés affichés ci-dessous ne sont que des résumés ou extraits issus des avis rendus par
     la Commission de la Transparence.
     Seul l'avis complet de la Commission de la Transparence fait référence.
@@ -64,10 +75,12 @@
         <li>Résumé : {{=item.libelle_SMR}}</li>
         {{~}}
     </ul>
-    {{ }  else { }}
+    {{ }  else if(it.generique && it.generique.length) { }}
     Ce médicament étant un générique, le SMR n'a pas été évalué par la Commission de la Transparence (CT).
     Il est possible de se référer à la/aux spécialité(s) de référence du groupe générique auquel
     appartient ce médicament
+    {{  } else {}}
+        Pas d'SMR disponible pour ce médicament.
     {{  } }}
 </div>
 <div class="header-group asmr">
@@ -87,10 +100,12 @@
         <li>Résumé : {{=item.libelle_ASMR}}</li>
         {{~}}
     </ul>
-    {{ }  else { }}
-    Ce médicament étant un générique, le SMR n'a pas été évalué par la Commission de la Transparence (CT).
+    {{ }  else if(it.generique && it.generique.length) { }}
+    Ce médicament étant un générique, le ASMR n'a pas été évalué par la Commission de la Transparence (CT).
     Il est possible de se référer à la/aux spécialité(s) de référence du groupe générique auquel
     appartient ce médicament
+    {{  } else {}}
+        Pas d'ASMR disponible pour ce médicament.
     {{  } }}
 </div>
 <div class="header-group autres-infos">
