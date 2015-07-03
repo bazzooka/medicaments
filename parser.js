@@ -336,9 +336,6 @@ var downloadPDFFiles = function(){
                     }
                     console.log("Fin download ");
                 });
-
-
-
             }
         }, function(err){
             if(err){
@@ -349,9 +346,11 @@ var downloadPDFFiles = function(){
     });
 };
 
+//createInfos
+
 //generalBaseFileDownloader();
 //insertInDatabase();
-//database.compareSpecialiteAndAddon();
+database.compareSpecialiteAndAddon();
 
 //createInfos({cis: "63104382"});
 
@@ -359,5 +358,5 @@ var downloadPDFFiles = function(){
 
 //createGeneriques();
 
-downloadPDFFiles();
+//downloadPDFFiles();
 

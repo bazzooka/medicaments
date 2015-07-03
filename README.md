@@ -21,4 +21,32 @@ Get informations on medicine in french
 
  - adapter aux mobiles (unités à mettre en viewport avec polyfill en px)
 
+ - Créer application avec React avec construction des pages ) la volée depuis interrogation serveur
+
+ PROCEDURE CREATION FICHE :
+  1. Télécharger tous les fichiers de DB
+  2. Insérer les fichiers en DB
+  3. Parcourir les CIP :
+    - Pour chaque CIP de specialite :
+        - Si CIP présent dans specialiteAddon :
+            - Si specialite[cip].code_rcp_notice =>
+                - download (64226300 rcp avec images) à l'adresse: http://agence-prd.ansm.sante.fr/php/ecodex/rcp/R0242883.htm
+                - download (64226300 notice avec images) à l'adresse: http://agence-prd.ansm.sante.fr/php/ecodex/notice/N0242883.htm
+            - Sinon si specialiteAddon[cip].numero_autorisation_eur: (65877011)
+                - download RCP PDF (69643760 PDF) à l'adresse : "http://m.base-donnees-publique.medicaments.gouv.fr/www/pdf/rcp/rcp-" + numero_autorisation_eur.split('/')[3] + ".pdf
+                - download Notice PDF (69643760 PDF) à l'adresse : "http://m.base-donnees-publique.medicaments.gouv.fr/www/pdf/notice/notice-" + numero_autorisation_eur.split('/')[3] + ".pdf
+
+        - Sinon :
+            - Si specialite[cip].code_rcp_notice =>
+                  - download (64226300 rcp avec images) à l'adresse: http://agence-prd.ansm.sante.fr/php/ecodex/rcp/R0242883.htm
+                  - download (64226300 notice avec images) à l'adresse: http://agence-prd.ansm.sante.fr/php/ecodex/notice/N0242883.htm
+
+        - Construction de l'index.html de chaque CIS
+            - Si notice.pdf / rcp.pdf lien direct vers le PDF
+            - Sinon si notice.html / rcp.html alors on récupère les infos pour les mettre sous forme d'onglets
+            - Sinon si specialiteAddon => on construit la page depuis les infos des addons
+            - Sinon on construit la pge depuis les infos de specialite, presentation, composition
+
+
+
 

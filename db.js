@@ -6,22 +6,7 @@ var
     async = require('async'),
     database_config = {
         url: 'mongodb://localhost:27017/medicament'
-    },
-    ALL_CIP_DATAS = null;
-
-
-var collections_NAMES = ["specialite", "specialiteAddon", "presentation", "composition", "avisSMR", "avisASMR", "liensAvis", "generique", "prescription"];
-
-var backupDatabase = function(callback){
-    backup({
-        uri: database_config.url, // mongodb://<dbuser>:<dbpassword>@<dbdomain>.mongolab.com:<dbport>/<dbdatabase>
-        root: __dirname + '/db/',
-        callback: function(){
-            console.log("Database was dumped");
-            callback(null, true);
-        }
-    });
-};
+    };
 
 var deleteDatabase = function(callback){
     MongoClient.connect(database_config.url, function(err, db) {
@@ -29,109 +14,6 @@ var deleteDatabase = function(callback){
         console.log("Database was dropped");
         db.close();
         callback(null, true);
-    });
-};
-
-var createDatabase = function(callback){
-    MongoClient.connect(database_config.url, function(err, db) {
-        var cips = db.collection('cips'),
-            datas = [],
-            listInsert = [];
-
-
-        for(var i = 0, l = ALL_CIP_DATAS.length; i < l ; i++){
-            datas.push({
-                cip: ALL_CIP_DATAS[i][0],
-                denomination: ALL_CIP_DATAS[i][1],
-                forme: ALL_CIP_DATAS[i][2],
-                voies: ALL_CIP_DATAS[i][3],
-                statut_AMM: ALL_CIP_DATAS[i][4],
-                type_procedure: ALL_CIP_DATAS[i][5],
-                etat: ALL_CIP_DATAS[i][6],
-                code_rcp_notice: ALL_CIP_DATAS[i][7]
-            });
-        }
-
-        async.each(datas, function(item, callback){
-            cips.insert(item, function(err, result){
-                if(err){
-                    console.log(err);
-                    throw "Erreur in first database insertion";
-                }
-                callback(null, true);
-            });
-        }, function(err){
-            console.log("All was inserted");
-            db.close();
-            callback(null, true);
-        });
-    });
-};
-
-var getAllMedicaments = function(callback){
-    MongoClient.connect(database_config.url, function(err, db) {
-        var collection = db.collection('cips');
-        // Find some documents
-        collection.find({}).toArray(function(err, docs) {
-            db.close();
-            callback(docs);
-        });
-    });
-}
-
-var countCipInDB = function(callback){
-    MongoClient.connect(database_config.url, function(err, db) {
-        var collection = db.collection('cips');
-        // Find some documents
-        collection.find({}).toArray(function(err, docs) {
-            console.log("%d cips in database", docs.length);
-            db.close();
-            callback(null, true);
-        });
-    });
-};
-
-var getDifferentCIPStates = function(){
-
-    MongoClient.connect(database_config.url, function(err, db) {
-        var collection = db.collection('cips');
-
-        collection.group({'statut_AMM':true}, {}, {"count":0}, function (obj, prev) { prev.count++; }, true, function(err, results) {
-            console.log(results);
-            db.close();
-        });
-    });
-};
-
-var getDenominationStartWith = function(frag){
-    console.log("getDenominationStartWith");
-    MongoClient.connect(database_config.url, function(err, db) {
-        var collection = db.collection('cips');
-        // Find some documents
-        collection.find({denomination : /ZELITREX.*/}).toArray(function(error, results) {
-            if (error) {
-                callback(error);
-            } else {
-                console.log(results);
-            }
-            db.close();
-        });
-    });
-};
-
-var simpleFindTest = function(){
-    console.log("simpleFindTest");
-    MongoClient.connect(database_config.url, function(err, db) {
-        var collection = db.collection('cips');
-        // Find some documents
-        collection.find({statut_AMM : /.*suspendue.*/}).toArray(function(error, results) {
-            if (error) {
-                callback(error);
-            } else {
-                console.log(results);
-            }
-            db.close();
-        });
     });
 };
 
@@ -144,7 +26,7 @@ var insertSpecialite = function(datas, callback){
 
         for(var i = 0, l = datas.length; i < l ; i++){
             datasTab.push({
-                cip: datas[i][0],
+                cis: datas[i][0],
                 denomination: datas[i][1],
                 forme: datas[i][2],
                 voies: datas[i][3],
@@ -172,6 +54,82 @@ var insertSpecialite = function(datas, callback){
         });
     });
 };
+
+var insertComposition = function(datas, callback){
+    console.log("Insert composition");
+    MongoClient.connect(database_config.url, function(err, db) {
+        var specialite = db.collection('composition'),
+            datasTab = [];
+
+
+        for (var i = 0, l = datas.length; i < l; i++) {
+            datasTab.push({
+                cis: datas[i][0],
+                designation_element: datas[i][1],
+                code_substance: datas[i][2],
+                denomination_substance: datas[i][3],
+                dosage_substance: datas[i][4],
+                reference_dosage: datas[i][5],
+                nature_composant: datas[i][6],
+                numero_liaison: parseInt(datas[i][7])
+            });
+        }
+
+        async.each(datasTab, function (item, callback) {
+            specialite.insert(item, function (err, result) {
+                if (err) {
+                    console.log(err);
+                    throw "Erreur in first database specialite";
+                }
+                callback(null, true);
+            });
+        }, function (err) {
+            specialite.count(function (err, count) {
+                console.log("%d specialites in database", count);
+                db.close();
+                callback(null, true);
+            });
+        });
+    });
+};
+
+var insertPresentation = function(datas, callback){
+    console.log("Insert presentation");
+    MongoClient.connect(database_config.url, function(err, db) {
+        var presentation = db.collection('presentation'),
+            datasTab = [];
+
+
+        for(var i = 0, l = datas.length; i < l ; i++){
+            datasTab.push({
+                cis: datas[i][0],
+                cip7: datas[i][1],
+                libelle: datas[i][2],
+                statut: datas[i][3],
+                etat: datas[i][4],
+                date_declaration: datas[i][5],
+                cip13: datas[i][6]
+            });
+        }
+
+        async.each(datasTab, function(item, callback){
+            presentation.insert(item, function(err, result){
+                if(err){
+                    console.log(err);
+                    throw "Erreur in first database presentation";
+                }
+                callback(null, true);
+            });
+        }, function(err){
+            presentation.count(function(err, count) {
+                console.log("%d presentation in database", count);
+                db.close();
+                callback(null, true);
+            });
+        });
+    });
+};
+
 
 /**
  * Le nom de ce fichier est : CIS_bdpm.txt
@@ -258,10 +216,10 @@ var insertSpecialiteAddon = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertPresentation = function(datas, callback){
+var insertPresentationAddon = function(datas, callback){
     console.log("Insert presentation");
     MongoClient.connect(database_config.url, function(err, db) {
-        var presentation = db.collection('presentation'),
+        var presentation = db.collection('presentationAddon'),
             datasTab = [];
 
 
@@ -285,13 +243,13 @@ var insertPresentation = function(datas, callback){
             presentation.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database presentation";
+                    throw "Erreur in first database presentation Addon";
                 }
                 callback(null, true);
             });
         }, function(err){
             presentation.count(function(err, count) {
-                console.log("%d presentation in database", count);
+                console.log("%d presentationAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -318,10 +276,10 @@ var insertPresentation = function(datas, callback){
  * @param callback
  */
 
-var insertComposition = function(datas, callback){
+var insertCompositionAddon = function(datas, callback){
     console.log("Insert composition");
     MongoClient.connect(database_config.url, function(err, db) {
-        var composition = db.collection('composition'),
+        var composition = db.collection('compositionAddon'),
             datasTab = [];
 
 
@@ -342,13 +300,13 @@ var insertComposition = function(datas, callback){
             composition.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database composition";
+                    throw "Erreur in first database compositionAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             composition.count(function(err, count) {
-                console.log("%d composition in database", count);
+                console.log("%d compositionAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -369,10 +327,10 @@ var insertComposition = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertAvisSMR = function(datas, callback){
+var insertAvisSMRAddon = function(datas, callback){
     console.log("Insert avis SMR");
     MongoClient.connect(database_config.url, function(err, db) {
-        var avisSMR = db.collection('avisSMR'),
+        var avisSMR = db.collection('avisSMRAddon'),
             datasTab = [];
 
 
@@ -391,13 +349,13 @@ var insertAvisSMR = function(datas, callback){
             avisSMR.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database avisSMR";
+                    throw "Erreur in first database avisSMRAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             avisSMR.count(function(err, count) {
-                console.log("%d avisSMR in database", count);
+                console.log("%d avisSMRAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -418,10 +376,10 @@ var insertAvisSMR = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertAvisASMR = function(datas, callback){
+var insertAvisASMRAddon = function(datas, callback){
     console.log("Insert avis ASMR");
     MongoClient.connect(database_config.url, function(err, db) {
-        var avisASMR = db.collection('avisASMR'),
+        var avisASMR = db.collection('avisASMRAddon'),
             datasTab = [];
 
 
@@ -440,13 +398,13 @@ var insertAvisASMR = function(datas, callback){
             avisASMR.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database avisASMR";
+                    throw "Erreur in first database avisASMRAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             avisASMR.count(function(err, count) {
-                console.log("%d avisASMR in database", count);
+                console.log("%d avisASMRAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -464,10 +422,10 @@ var insertAvisASMR = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertLienAvis = function(datas, callback){
+var insertLienAvisAddon = function(datas, callback){
     console.log("Insert liens avis");
     MongoClient.connect(database_config.url, function(err, db) {
-        var liensAvis = db.collection('liensAvis'),
+        var liensAvis = db.collection('liensAvisAddon'),
             datasTab = [];
 
 
@@ -482,13 +440,13 @@ var insertLienAvis = function(datas, callback){
             liensAvis.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database liensAvis";
+                    throw "Erreur in first database liensAvisAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             liensAvis.count(function(err, count) {
-                console.log("%d liensAvis in database", count);
+                console.log("%d liensAvisAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -513,10 +471,10 @@ var insertLienAvis = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertGeneriques = function(datas, callback){
+var insertGeneriquesAddon = function(datas, callback){
     console.log("Insert générique");
     MongoClient.connect(database_config.url, function(err, db) {
-        var generique = db.collection('generique'),
+        var generique = db.collection('generiqueAddon'),
             datasTab = [];
 
 
@@ -534,13 +492,13 @@ var insertGeneriques = function(datas, callback){
             generique.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database generique";
+                    throw "Erreur in first database generiqueAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             generique.count(function(err, count) {
-                console.log("%d generique in database", count);
+                console.log("%d generiqueAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -557,10 +515,10 @@ var insertGeneriques = function(datas, callback){
  * @param datas
  * @param callback
  */
-var insertPrescription = function(datas, callback){
+var insertPrescriptionAddon = function(datas, callback){
     console.log("Insert prescription");
     MongoClient.connect(database_config.url, function(err, db) {
-        var prescription = db.collection('prescription'),
+        var prescription = db.collection('prescriptionAddon'),
             datasTab = [];
 
 
@@ -575,13 +533,13 @@ var insertPrescription = function(datas, callback){
             prescription.insert(item, function(err, result){
                 if(err){
                     console.log(err);
-                    throw "Erreur in first database prescription";
+                    throw "Erreur in first database prescriptionAddon";
                 }
                 callback(null, true);
             });
         }, function(err){
             prescription.count(function(err, count) {
-                console.log("%d prescription in database", count);
+                console.log("%d prescriptionAddon in database", count);
                 db.close();
                 callback(null, true);
             });
@@ -589,220 +547,153 @@ var insertPrescription = function(datas, callback){
     });
 };
 
-var compareSpecialiteAndAddon = function(){
+var insertInfosImportantesAddon = function(datas, callback){
+    console.log("Insert informations importantes");
     MongoClient.connect(database_config.url, function(err, db) {
-        var specialiteAddon = db.collection('specialiteAddon'),
-            specialite = db.collection('specialite'),
+        var infos = db.collection('infosImportantes'),
             datasTab = [];
 
 
-        specialiteAddon.find({}, {cis: 1, _id: 0}).toArray(function(err, docs){
-            var allAddonsCIS = [];
-            for(var i = 0, l = docs.length; i < l; i++){
-                allAddonsCIS.push(docs[i].cis);
-            }
-            specialite.find({'cip': {$nin: allAddonsCIS}}).toArray(function(err, docNotInAddons){
-                console.log(docNotInAddons);
-                specialite.count(function(err, count) {
-                    console.log("%d specialites", count);
-                    specialiteAddon.count(function(err, count) {
-                        console.log("%d specialiteAddon", count);
-                        db.close();
-                    });
-                });
+        for(var i = 0, l = datas.length; i < l ; i++){
+            datasTab.push({
+                cis: datas[i][0],
+                debut: datas[i][1],
+                fin: datas[i][2],
+                lien: datas[i][3]
+            });
+        }
+
+        async.each(datasTab, function(item, callback){
+            infos.insert(item, function(err, result){
+                if(err){
+                    console.log(err);
+                    throw "Erreur in first database informations immportantes";
+                }
+                callback(null, true);
+            });
+        }, function(err){
+            infos.count(function(err, count) {
+                console.log("%d informations importantes in database", count);
+                db.close();
+                callback(null, true);
             });
         });
     });
 };
 
-var getAllCIP = function(callback){
-    MongoClient.connect(database_config.url, function(err, db) {
-        var specialiteAddons = db.collection(collections_NAMES[1]);
+var collectDatasOnCIS = function(cis, callbackGeneral){
+    console.log("CollectDatasOnCIS %s", cis);
 
-        specialiteAddons.find({}, {_id:0, cis: 1, denomination: 1}).toArray(function(err, docs){
-            if(err){
-                throw "Erreur on getAllCIP";
-            }
+    MongoClient.connect(database_config.url, function(err, db) {
+        var specialite = db.collection("specialite"),
+            composition = db.collection("composition"),
+            presentation = db.collection("presentation"),
+            specialiteAddon = db.collection("specialiteAddon"),
+            presentationAddon = db.collection("presentationAddon"),
+            compositionAddon = db.collection("compositionAddon"),
+            avisSMRAddon = db.collection("avisSMRAddon"),
+            avisASMRAddon = db.collection("avisASMRAddon"),
+            liensAvisAddon = db.collection("liensAvisAddon"),
+            generiqueAddon = db.collection("generiqueAddon"),
+            prescriptionAddon = db.collection("prescriptionAddon"),
+            infosImportantes = db.collection("infosImportantes");
+
+        specialite.find({cis: cis}).toArray(function (err, docs) {
+            var doc = docs[0];
+            async.each([{
+                collection: composition,
+                name: "composition"
+            }, {
+                collection: presentation,
+                name: "presentation"
+            }, {
+                collection: specialiteAddon,
+                name: "specialiteAddon"
+            }, {
+                collection: presentationAddon,
+                name: "presentationAddon"
+            }, {
+                collection: presentationAddon,
+                name: "presentationAddon"
+            }, {
+                collection: avisSMRAddon,
+                name: "avisSMRAddon"
+            }, {
+                collection: avisASMRAddon,
+                name: "avisASMRAddon"
+            }, {
+                collection: liensAvisAddon,
+                name: "liensAvisAddon"
+            }, {
+                collection: generiqueAddon,
+                name: "generiqueAddon"
+            }, {
+                collection: prescriptionAddon,
+                name: "prescriptionAddon"
+            }, {
+                collection: infosImportantes,
+                name: "infosImportantes"
+            }], function (item, callback) {
+                if (item.name === "composition") {
+                    item.collection.find({cis: cis}).sort({
+                        designation_element: 1,
+                        numero_liaison: 1,
+                        nature_composant: 1
+                    }).toArray(function (err, data) {
+                        doc[item.name] = data;
+                        callback(null, true);
+                    });
+                } else if(item.name === "specialiteAddon"){
+                    item.collection.find({cis: cis}).toArray(function (err, data) {
+                        doc[item.name] = data[0];
+                        callback(null, true);
+                    });
+                } else {
+                    item.collection.find({cis: cis}).toArray(function (err, data) {
+                        doc[item.name] = data;
+                        callback(null, true);
+                    });
+                }
+
+            }, function (err) {
+                db.close();
+                if (err) {
+                    throw "Error in getAllCIPInfos";
+                }
+                callbackGeneral(doc);
+            });
+        });
+    });
+};
+
+var getAllCIS = function(callback){
+    console.log("Get all CIS");
+    MongoClient.connect(database_config.url, function(err, db) {
+        var specialite = db.collection('specialite');
+
+        specialite.find({}).toArray(function(err, docs){
+            if(err) throw err;
             callback && callback(docs);
             db.close();
         });
     });
 };
 
-var getAllInfosOnCIP = function(cip, callback){
-    MongoClient.connect(database_config.url, function(err, db) {
-        var specialiteAddons = db.collection(collections_NAMES[1]),
-            presentation = db.collection(collections_NAMES[2]),
-            composition = db.collection(collections_NAMES[3]),
-            avisSMR = db.collection(collections_NAMES[4]),
-            avisASMR = db.collection(collections_NAMES[5]),
-            generique = db.collection(collections_NAMES[7]),
-            prescription = db.collection(collections_NAMES[8]);
-
-        specialiteAddons.find({cis: cip}).toArray(function(err, docs){
-            var doc = docs[0];
-            async.each([{
-                collection: presentation,
-                name : "presentation"
-            }, {
-                collection: composition,
-                name : "composition"
-            }, {
-                collection: avisSMR,
-                name : "avisSMR"
-            }, {
-                collection: avisASMR,
-                name : "avisASMR"
-            }, {
-                collection: generique,
-                name : "generique"
-            }, {
-                collection: prescription,
-                name : "prescription"
-            }], function(item, callback){
-                if(item.name === "composition"){
-                    item.collection.find({cis: cip}).sort({designation_element: 1, numero_liaison: 1, nature_composant: 1}).toArray(function(err, data){
-                        doc[item.name] = data;
-                        callback(null, true);
-                    });
-                } else {
-                    item.collection.find({cis: cip}).toArray(function(err, data){
-                        doc[item.name] = data;
-                        callback(null, true);
-                    });
-                }
-
-            }, function(err){
-                db.close();
-                if(err){
-                    throw "Error in getAllCIPINfos";
-                }
-                callback(doc);
-            });
-        });
-    });
-};
-
-var getGeneriques = function(callbackGeneral){
-    console.log("Get all génériques");
-
-    MongoClient.connect(database_config.url, function(err, db){
-        var generique = db.collection('generique'),
-            specialite = db.collection('specialite'),
-            allGeneriques = [];
-
-        generique.find({}, {identifiant: 1, cis: 1, libelle: 1, type: 1, ordre: 1, _id: 0}).sort({identifiant: 1, ordre: 1})/*.limit(100)*/.toArray(function(err, docs){
-            var index = 0,
-                max = docs.length;
-            async.each(docs, function(item, callback){
-
-                specialite.find({cip: item.cis}, {_id: 0, cip: 1, denomination: 1, etat: 1}).toArray(function(err, spec){
-                    console.log("Get génériques %s", Math.round((index++)*100/max));
-                    item.med = spec[0];
-                    allGeneriques.push(item);
-                    callback(null, true);
-                });
-            }, function(err){
-                if(err){
-                    callbackGeneral && callbackGeneral("erreur getGeneriques", true);
-                }
-
-                callbackGeneral && callbackGeneral(allGeneriques);
-                db.close();
-            });
-        });
-    });
-};
-
-var addNoNoticeCIP = function(item, callback){
-    console.log("No notice for CIP %s", item.cip);
-    MongoClient.connect(database_config.url, function(err, db) {
-        var noNotice = db.collection('noNotice');
-
-            noNotice.insert(item, function(err, result){
-                if(err){
-                    console.log(err);
-                    throw "Erreur in first database noNotice";
-                }
-                db.close();
-                callback && callback(null, true);
-            });
-
-
-    });
-};
-
-var getNoNoticeCIP = function(callback){
-    console.log("getNoNoticeCIP");
-    MongoClient.connect(database_config.url, function(err, db) {
-        var noNotice = db.collection('noNotice');
-
-        noNotice.find({}).toArray(function(err, docs){
-            if(err){
-                throw err;
-            }
-            callback && callback(null, docs);
-            db.close();
-        });
-    });
-};
-
 module.exports = {
-    start : function(ALL_CIP){
-        ALL_CIP_DATAS = ALL_CIP;
-        async.series([backupDatabase, deleteDatabase, createDatabase, countCipInDB], function(){
-            console.log("Database make its job well");
-            getDenominationStartWith(/dolip/);
-        });
-    },
-
-    getAllMedicaments: function(callback){
-        getAllMedicaments(callback);
-    },
-
-    deleteDatabase : deleteDatabase,
-
-    insertSpecialite : insertSpecialite,
-    insertSpecialiteAddon: insertSpecialiteAddon,
-    insertPresentation: insertPresentation,
+    deleteDatabase: deleteDatabase,
+    insertSpecialite: insertSpecialite,
     insertComposition: insertComposition,
-    insertAvisSMR: insertAvisSMR,
-    insertAvisASMR: insertAvisASMR,
-    insertLienAvis: insertLienAvis,
-    insertGeneriques: insertGeneriques,
-    insertPrescription: insertPrescription,
+    insertPresentation: insertPresentation,
+    insertSpecialiteAddon: insertSpecialiteAddon,
+    insertPresentationAddon:insertPresentationAddon,
+    insertCompositionAddon: insertCompositionAddon,
+    insertAvisSMRAddon: insertAvisSMRAddon,
+    insertAvisASMRAddon: insertAvisASMRAddon,
+    insertLienAvisAddon: insertLienAvisAddon,
+    insertGeneriquesAddon: insertGeneriquesAddon,
+    insertPrescriptionAddon: insertPrescriptionAddon,
+    insertInfosImportantesAddon: insertInfosImportantesAddon,
 
-    getAllCIP: getAllCIP,
-    getAllInfosOnCIP: getAllInfosOnCIP,
-    addNoNoticeCIP: addNoNoticeCIP,
-    getGeneriques: getGeneriques,
-    getNoNoticeCIP: getNoNoticeCIP,
-
-
-    compareSpecialiteAndAddon : compareSpecialiteAndAddon
+    collectDatasOnCIS: collectDatasOnCIS,
+    getAllCIS: getAllCIS
 };
-
-var parseCSVToJSON = function(){
-    var stream = fs.createReadStream("downloaded/specialites.csv");
-    var parser = parse({delimiter: '\t', relax: true});
-    var ALL_SPECIALITES_TAB = [];
-
-    parser.on('readable', function(){
-        while(record = parser.read()){
-            ALL_SPECIALITES_TAB.push(record);
-        }
-    });
-
-    parser.on('finish', function(){
-        console.log("specialites.csv was successfully parsed.");
-
-        module.exports.start(ALL_SPECIALITES_TAB);
-        // getCIPInformations();
-    });
-
-    stream.pipe(parser);
-};
-//simpleFindTest();
-//module.exports.start();
-
-//parseCSVToJSON();
